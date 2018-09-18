@@ -33,7 +33,7 @@ class client(threading.Thread):
 		self.client.close()
 
 	def send(self, message):
-		self.client.sendMessage(message.encode("UTF-8"))
+		self.client.sendMessage(message)
 		print("[OUT] [" + self.name + " - " + self.address + "] " + message)
 
 	def handleMessage(self, message):
