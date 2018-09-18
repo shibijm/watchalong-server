@@ -24,15 +24,15 @@ class client(threading.Thread):
 		self.pingTimedOut = False
 
 	def ping(self):
-		self.write("PING")
+		self.send("PING")
 		self.pingTimeoutTimer = threading.Timer(self.pingTimeoutDelay, self.pingTimeout)
 		self.pingTimeoutTimer.start()
 
 	def pingTimeout(self):
 		self.pingTimedOut = True
-		self.client.sendClose()
+		self.client.close()
 
-	def write(self, message):
+	def send(self, message):
 		self.client.sendMessage(message.encode("UTF-8"))
 		print("[OUT] [" + self.name + " - " + self.address + "] " + message)
 
@@ -51,8 +51,8 @@ class client(threading.Thread):
 				for client in clients:
 					if (client != self):
 						users += ", " + client.name
-						client.write("Connect: " + self.name)
-				self.write("Welcome, " + self.name + ". Users connected: " + users)
+						client.send("Connect: " + self.name)
+				self.send("Welcome, " + self.name + ". Users connected: " + users)
 				self.pingTimer = threading.Timer(1, self.ping)
 				self.pingTimer.start()
 			elif (args[0] == "USERS"):
@@ -60,7 +60,7 @@ class client(threading.Thread):
 				for client in clients:
 					if (client != self):
 						users += ", " + client.name
-				self.write("Users connected: " + users)
+				self.send("Users connected: " + users)
 			elif (args[0] == "REQUEST"):
 				self.playing = True if args[1] == "playing" else False
 				self.time = int(args[2])
@@ -68,7 +68,7 @@ class client(threading.Thread):
 				awaitingResponses = 0
 				for client in clients:
 					if (client != self):
-						client.write("STATUS_REQUEST:" + self.name)
+						client.send("STATUS_REQUEST:" + self.name)
 						awaitingResponses += 1
 			elif (args[0] == "STATUS"):
 				self.playing = True if args[1] == "playing" else False
@@ -78,12 +78,12 @@ class client(threading.Thread):
 				awaitingResponses -= 1
 				if (awaitingResponses == 0):
 					for client in clients:
-						client.write("DONE:" + str(lowestTime))
+						client.send("DONE:" + str(lowestTime))
 			elif (args[0] == "STATUS_REQUEST_FAILED"):
 				awaitingResponses = 0
 				for client in clients:
 					if (client != self):
-						client.write(self.name + " failed to connect to their player: " + args[1])
+						client.send(self.name + " failed to connect to their player: " + args[1])
 
 	def handleClose(self):
 		if (self.pingTimer):
@@ -93,7 +93,7 @@ class client(threading.Thread):
 		print("[DISCONNECT] " + self.name + " - " + self.address + " (" + self.disconnectReason + ")")
 		clients.remove(self)
 		for client in clients:
-			client.write("Disconnect: " + self.name + " (" + self.disconnectReason + ")")
+			client.send("Disconnect: " + self.name + " (" + self.disconnectReason + ")")
 
 class webSocketServer(WebSocket):
 
