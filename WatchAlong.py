@@ -16,7 +16,7 @@ class client(threading.Thread):
 		self.name = name
 		self.playing = playing
 		self.time = time
-		self.pingInterval = 60
+		self.pingInterval = 30
 		self.pingTimeoutDelay = 15
 		self.disconnectReason = "Quit"
 		self.pingTimer = None
@@ -29,8 +29,8 @@ class client(threading.Thread):
 		self.pingTimeoutTimer.start()
 
 	def pingTimeout(self):
-		self.client.sendClose()
 		self.pingTimedOut = True
+		self.client.sendClose()
 
 	def write(self, message):
 		self.client.sendMessage(message.encode("UTF-8"))
@@ -98,7 +98,6 @@ class client(threading.Thread):
 class webSocketServer(WebSocket):
 
 	def handleMessage(self):
-		print("handleMessage")
 		try:
 			for client in clients:
 				if (client.client == self):
