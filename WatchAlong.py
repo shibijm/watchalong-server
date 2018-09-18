@@ -70,6 +70,9 @@ class client(threading.Thread):
 					if (client != self):
 						client.send("STATUS_REQUEST:" + self.name)
 						awaitingResponses += 1
+				if (awaitingResponses == 0):
+					for client in clients:
+						client.send("DONE:" + str(lowestTime))
 			elif (args[0] == "STATUS"):
 				self.playing = True if args[1] == "playing" else False
 				self.time = int(args[2])
