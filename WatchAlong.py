@@ -109,7 +109,7 @@ class server:
 		self.clients = []
 		self.awaitingResponses = 0
 		self.lowestTime = 0
-		self.port = 22333
+		self.port = os.environ.get("PORT", 22333)
 
 	def start(self):
 		self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
