@@ -5,6 +5,8 @@ import threading
 import time
 import traceback
 
+lowestTime = -1
+awaitingResponses = 0
 clients = []
 
 class client(threading.Thread):
@@ -76,7 +78,7 @@ class client(threading.Thread):
 			elif (args[0] == "STATUS"):
 				self.playing = True if args[1] == "playing" else False
 				self.time = int(args[2])
-				if (self.time < lowestTime):
+				if (self.time < lowestTime or lowestTime < 0):
 					lowestTime = self.time
 				awaitingResponses -= 1
 				if (awaitingResponses == 0):
