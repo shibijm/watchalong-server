@@ -39,6 +39,7 @@ class client(threading.Thread):
 		print("[OUT] [" + self.name + " - " + self.address + "] " + message)
 
 	def handleMessage(self, message):
+		global lowestTime, awaitingResponses, clients
 		message = message.replace("\r\n", "")
 		if (message not in [None, ""]):
 			print("[IN] [" + self.name + " - " + self.address + "] " + message)
@@ -91,6 +92,7 @@ class client(threading.Thread):
 						client.send(self.name + " failed to connect to their player: " + args[1])
 
 	def handleClose(self):
+		global clients
 		if (self.pingTimer):
 			self.pingTimer.cancel()
 		if (self.pingTimedOut):
