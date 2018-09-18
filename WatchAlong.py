@@ -12,7 +12,7 @@ class client(threading.Thread):
 	def __init__(self, client, name, playing, time):
 		super().__init__()
 		self.client = client
-		self.address = self.client.address[0] + ":" + self.client.address[1]
+		self.address = self.client.address[0] + ":" + str(self.client.address[1])
 		self.name = name
 		self.playing = playing
 		self.time = time
@@ -98,19 +98,31 @@ class client(threading.Thread):
 class webSocketServer(WebSocket):
 
 	def handleMessage(self):
-		for client in clients:
-			if (client.client == self):
-				client.handleMessage(self.data)
+		print("handleMessage")
+		try:
+			for client in clients:
+				if (client.client == self):
+					client.handleMessage(self.data)
+		except:
+			print(traceback.format_exc())
 
 	def handleConnected(self):
-		print("[CONNECT] " + self.address[0] + ":" + self.address[1])
-		clientInstance = client(self, "NOT_SET", False, 0)
-		clients.append(clientInstance)
+		try:
+			print("[CONNECT] " + self.address[0] + ":" + str(self.address[1]))
+			clientInstance = client(self, "NOT_SET", False, 0)
+			clients.append(clientInstance)
+		except:
+			print(traceback.format_exc())
 
 	def handleClose(self):
-		for client in clients:
-			if (client.client == self):
-				client.handleClose()
+		try:
+			for client in clients:
+				if (client.client == self):
+					client.handleClose()
+		except:
+			print(traceback.format_exc())
 
-server = SimpleWebSocketServer("0.0.0.0", int(os.environ.get("PORT", 22333)), webSocketServer)
+port = int(os.environ.get("PORT", 22333))
+server = SimpleWebSocketServer("", port, webSocketServer)
+print("Bound on port " + str(port))
 server.serveforever()
