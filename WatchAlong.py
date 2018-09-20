@@ -5,16 +5,11 @@ import threading
 import time
 import traceback
 
-lowestTime = -1
-awaitingResponses = 0
-clients = []
+class client:
 
-class client(threading.Thread):
-
-	def __init__(self, client, name, playing, time):
-		super().__init__()
+	def __init__(self, client, address, name, playing, time):
 		self.client = client
-		self.address = self.client.address[0] + ":" + str(self.client.address[1])
+		self.address = address
 		self.name = name
 		self.playing = playing
 		self.time = time
@@ -35,7 +30,7 @@ class client(threading.Thread):
 		self.client.close()
 
 	def send(self, message):
-		self.client.sendMessage(message)
+		self.client.sendall(message.encode("UTF-8")) if self.client.__class__.__name__ == "socket" else self.client.sendMessage(message)
 		print("[OUT] [" + self.name + " - " + self.address + "] " + message)
 
 	def handleMessage(self, message):
@@ -90,6 +85,8 @@ class client(threading.Thread):
 				for client in clients:
 					if (client != self):
 						client.send(self.name + " failed to connect to their player: " + args[1])
+			elif (args[0] == "QUIT"):
+				self.client.close()
 
 	def handleClose(self):
 		global clients
@@ -104,6 +101,8 @@ class client(threading.Thread):
 
 class webSocketServer(WebSocket):
 
+	port = int(os.environ.get("PORT", 22334))
+
 	def handleMessage(self):
 		try:
 			for client in clients:
@@ -114,8 +113,9 @@ class webSocketServer(WebSocket):
 
 	def handleConnected(self):
 		try:
-			print("[CONNECT] " + self.address[0] + ":" + str(self.address[1]))
-			clientInstance = client(self, "NOT_SET", False, 0)
+			address = self.address[0] + ":" + str(self.address[1])
+			print("[CONNECT] " + address)
+			clientInstance = client(self, address, "NOT_SET", False, 0)
 			clients.append(clientInstance)
 		except:
 			print(traceback.format_exc())
@@ -128,7 +128,56 @@ class webSocketServer(WebSocket):
 		except:
 			print(traceback.format_exc())
 
-port = int(os.environ.get("PORT", 22333))
-server = SimpleWebSocketServer("", port, webSocketServer)
-print("Bound on port " + str(port))
-server.serveforever()
+class socketServerClientHandler(threading.Thread):
+
+	def __init__(self, clientSocket, clientInstance):
+		super().__init__()
+		self.clientSocket = clientSocket
+		self.clientInstance = clientInstance
+
+	def run(self):
+		try:
+			while (True):
+				message = self.clientSocket.recv(1024).decode("UTF-8")
+				self.clientInstance.handleMessage(message)
+		except ConnectionAbortedError as e:
+			self.clientInstance.disconnectReason = "Connection Aborted"
+		except (ConnectionResetError, OSError):
+			pass
+		except Exception as e:
+			print(traceback.format_exc())
+		finally:
+			self.clientInstance.handleClose()
+
+class socketServer(threading.Thread):
+
+	def __init__(self):
+		super().__init__()
+		self.port = int(os.environ.get("PORT", 22333))
+
+	def run(self):
+		self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		self.server.bind(("", self.port))
+		self.server.listen(5)
+		print("Server Running on Port " + str(self.port))
+		while (True):
+			clientSocket, address = self.server.accept()
+			address = address[0] + ":" + str(address[1])
+			print("[CONNECT] " + address)
+			clientInstance = client(clientSocket, address, "NOT_SET", False, 0)
+			clients.append(clientInstance)
+			socketServerClientHandlerInstance = socketServerClientHandler(clientSocket, clientInstance)
+			socketServerClientHandlerInstance.start()
+		self.server.close()
+
+clients = []
+lowestTime = 0
+awaitingResponses = 0
+enableWebSocketServer = True
+
+server = socketServer()
+server.start()
+if (enableWebSocketServer):
+	server = SimpleWebSocketServer("", webSocketServer.port, webSocketServer)
+	print("Websocket Server Running on Port " + str(webSocketServer.port))
+	server.serveforever()
