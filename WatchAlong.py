@@ -173,10 +173,12 @@ class socketServer(threading.Thread):
 clients = []
 lowestTime = 0
 awaitingResponses = 0
+enableSocketServer = False
 enableWebSocketServer = True
 
-server = socketServer()
-server.start()
+if (enableSocketServer):
+	server = socketServer()
+	server.start()
 if (enableWebSocketServer):
 	server = SimpleWebSocketServer("", webSocketServer.port, webSocketServer)
 	print("Websocket Server Running on Port " + str(webSocketServer.port))
