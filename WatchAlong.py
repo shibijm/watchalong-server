@@ -2,7 +2,6 @@ from SimpleWebSocketServer import SimpleWebSocketServer, WebSocket
 import os
 import socket
 import threading
-import time
 import traceback
 
 class client:
