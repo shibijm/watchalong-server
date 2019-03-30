@@ -97,7 +97,6 @@ class webSocketServer(WebSocket):
 
 	def handleConnected(self):
 		try:
-			print(self.address)
 			address = self.address[0] + ":" + str(self.address[1])
 			print("[CONNECT] " + address)
 			clientInstance = client(self, address)
