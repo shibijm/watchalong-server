@@ -1,12 +1,14 @@
 from SimpleWebSocketServer import SimpleWebSocketServer, WebSocket
 import os
+import requests
 import socket
 import threading
+import time
 import traceback
 
 class client:
 
-	def __init__(self, client, address, name, playing, time):
+	def __init__(self, client, address, name = "NOT_SET", playing = False, time = 0):
 		self.client = client
 		self.address = address
 		self.name = name
@@ -32,8 +34,7 @@ class client:
 		self.client.sendall(message.encode("UTF-8")) if self.client.__class__.__name__ == "socket" else self.client.sendMessage(message)
 		print("[OUT] [" + self.name + " - " + self.address + "] " + message)
 
-	def handleMessage(self, message):
-		global lowestTime, awaitingResponses, clients
+	def receive(self, message):
 		message = message.replace("\r\n", "")
 		if (message not in [None, ""]):
 			print("[IN] [" + self.name + " - " + self.address + "] " + message)
@@ -44,20 +45,12 @@ class client:
 				self.pingTimer.start()
 			elif (args[0] == "HELLO"):
 				self.name = args[1]
-				users = self.name
-				for client in clients:
-					if (client != self):
-						users += ", " + client.name
-						client.send("Connect: " + self.name)
-				self.send("Welcome, " + self.name + ". Users connected: " + users)
+				[client.send("Connect: " + self.name) for client in clients if client != self]
+				self.send("Welcome, " + self.name + ". Users connected: " + ", ".join(client.name for client in clients))
 				self.pingTimer = threading.Timer(1, self.ping)
 				self.pingTimer.start()
 			elif (args[0] == "USERS"):
-				users = self.name
-				for client in clients:
-					if (client != self):
-						users += ", " + client.name
-				self.send("Users connected: " + users)
+				self.send("Users connected: " + ", ".join(client.name for client in clients))
 			elif (args[0] == "REQUEST"):
 				self.playing = True if args[1] == "playing" else False
 				self.time = int(args[2])
@@ -67,36 +60,27 @@ class client:
 					if (client != self):
 						client.send("STATUS_REQUEST:" + self.name)
 						awaitingResponses += 1
-				if (awaitingResponses == 0):
-					for client in clients:
-						client.send("DONE:" + str(lowestTime))
+				[client.send("DONE:" + str(lowestTime)) for client in clients if awaitingResponses == 0]
 			elif (args[0] == "STATUS"):
 				self.playing = True if args[1] == "playing" else False
 				self.time = int(args[2])
-				if (self.time < lowestTime or lowestTime < 0):
-					lowestTime = self.time
+				lowestTime = min(lowestTime, self.time)
 				awaitingResponses -= 1
-				if (awaitingResponses == 0):
-					for client in clients:
-						client.send("DONE:" + str(lowestTime))
+				[client.send("DONE:" + str(lowestTime)) for client in clients if awaitingResponses == 0]
 			elif (args[0] == "STATUS_REQUEST_FAILED"):
 				awaitingResponses = 0
-				for client in clients:
-					if (client != self):
-						client.send(self.name + " failed to connect to their player: " + args[1])
+				[client.send(self.name + " failed to connect to their player: " + args[1]) for client in clients if client != self]
 			elif (args[0] == "QUIT"):
 				self.client.close()
 
-	def handleClose(self):
-		global clients
+	def close(self):
 		if (self.pingTimer):
 			self.pingTimer.cancel()
 		if (self.pingTimedOut):
 			self.disconnectReason = "Ping Timeout"
 		print("[DISCONNECT] " + self.name + " - " + self.address + " (" + self.disconnectReason + ")")
 		clients.remove(self)
-		for client in clients:
-			client.send("Disconnect: " + self.name + " (" + self.disconnectReason + ")")
+		[client.send("Disconnect: " + self.name + " (" + self.disconnectReason + ")") for client in clients]
 
 class webSocketServer(WebSocket):
 
@@ -106,15 +90,17 @@ class webSocketServer(WebSocket):
 		try:
 			for client in clients:
 				if (client.client == self):
-					client.handleMessage(self.data)
+					client.receive(self.data)
+					break
 		except:
 			print(traceback.format_exc())
 
 	def handleConnected(self):
 		try:
+			print(self.address)
 			address = self.address[0] + ":" + str(self.address[1])
 			print("[CONNECT] " + address)
-			clientInstance = client(self, address, "NOT_SET", False, 0)
+			clientInstance = client(self, address)
 			clients.append(clientInstance)
 		except:
 			print(traceback.format_exc())
@@ -123,7 +109,8 @@ class webSocketServer(WebSocket):
 		try:
 			for client in clients:
 				if (client.client == self):
-					client.handleClose()
+					client.close()
+					break
 		except:
 			print(traceback.format_exc())
 
@@ -138,7 +125,7 @@ class socketServerClientHandler(threading.Thread):
 		try:
 			while (True):
 				message = self.clientSocket.recv(1024).decode("UTF-8")
-				self.clientInstance.handleMessage(message)
+				self.clientInstance.receive(message)
 		except ConnectionAbortedError as e:
 			self.clientInstance.disconnectReason = "Connection Aborted"
 		except (ConnectionResetError, OSError):
@@ -146,7 +133,7 @@ class socketServerClientHandler(threading.Thread):
 		except Exception as e:
 			print(traceback.format_exc())
 		finally:
-			self.clientInstance.handleClose()
+			self.clientInstance.close()
 
 class socketServer(threading.Thread):
 
@@ -163,22 +150,36 @@ class socketServer(threading.Thread):
 			clientSocket, address = self.server.accept()
 			address = address[0] + ":" + str(address[1])
 			print("[CONNECT] " + address)
-			clientInstance = client(clientSocket, address, "NOT_SET", False, 0)
+			clientInstance = client(clientSocket, address)
 			clients.append(clientInstance)
 			socketServerClientHandlerInstance = socketServerClientHandler(clientSocket, clientInstance)
 			socketServerClientHandlerInstance.start()
 		self.server.close()
 
+class keepAlive(threading.Thread):
+
+	def __init__(self):
+		super().__init__()
+
+	def run(self):
+		while (True):
+			if (len(clients) > 0):
+				requests.get("https://watchalong-s.herokuapp.com")
+				time.sleep(900)
+			else:
+				time.sleep(60)
+
 clients = []
 lowestTime = 0
 awaitingResponses = 0
-enableSocketServer = False
-enableWebSocketServer = True
 
-if (enableSocketServer):
+if ("PORT" in os.environ):
+	keepAliveThread = keepAlive()
+	keepAliveThread.daemon = True
+	keepAliveThread.start()
+else:
 	server = socketServer()
 	server.start()
-if (enableWebSocketServer):
-	server = SimpleWebSocketServer("", webSocketServer.port, webSocketServer)
-	print("Websocket Server Running on Port " + str(webSocketServer.port))
-	server.serveforever()
+server = SimpleWebSocketServer("", webSocketServer.port, webSocketServer)
+print("Websocket Server Running on Port " + str(webSocketServer.port))
+server.serveforever()
