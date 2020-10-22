@@ -8,7 +8,7 @@ class Client:
 	clients = []
 
 	def __init__(self, client, address, name = "NOT_SET", playing = False, time = 0):
-		self.Client = client
+		self.client = client
 		self.address = address
 		self.name = name
 		self.playing = playing
@@ -27,10 +27,10 @@ class Client:
 
 	def pingTimeout(self):
 		self.pingTimedOut = True
-		self.Client.close()
+		self.client.close()
 
 	def send(self, message):
-		self.Client.sendall(message.encode("UTF-8")) if self.Client.__class__.__name__ == "socket" else self.Client.sendMessage(message)
+		self.client.sendall(message.encode("UTF-8")) if self.client.__class__.__name__ == "socket" else self.client.sendMessage(message)
 		print("[OUT] [" + self.name + " - " + self.address + "] " + message)
 
 	def receive(self, message):
@@ -70,7 +70,7 @@ class Client:
 				awaitingResponses = 0
 				[client.send(self.name + " failed to connect to their player: " + args[1]) for client in self.clients if client != self]
 			elif (args[0] == "QUIT"):
-				self.Client.close()
+				self.client.close()
 
 	def close(self):
 		if (self.pingTimer):
