@@ -1,4 +1,4 @@
-from ..models import Client
+from packages.models import Client
 from SimpleWebSocketServer import WebSocket
 import os
 import traceback
