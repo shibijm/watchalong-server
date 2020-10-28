@@ -9,7 +9,8 @@ KeepAlive.clients = clients
 SocketServer.clients = clients
 WebSocketServer.clients = clients
 
-if ("PORT" in os.environ):
+isHeroku = "PORT" in os.environ
+if (isHeroku):
 	keepAlive = KeepAlive()
 	keepAlive.daemon = True
 	keepAlive.start()
