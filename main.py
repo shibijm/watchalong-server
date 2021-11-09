@@ -1,12 +1,11 @@
-from packages.models import Client
-from packages.modules import KeepAlive, SocketServer, WebSocketServer
+from models import Client
+from modules import KeepAlive, WebSocketServer
 from SimpleWebSocketServer import SimpleWebSocketServer
 import os
 
 clients = []
 Client.clients = clients
 KeepAlive.clients = clients
-SocketServer.clients = clients
 WebSocketServer.clients = clients
 
 isHeroku = "PORT" in os.environ

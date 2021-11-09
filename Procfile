@@ -1,1 +1,1 @@
-web: python WatchAlong.py
+web: python main.py
