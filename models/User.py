@@ -13,7 +13,7 @@ class User:
 		self.websocket = websocket
 		self.address = address
 		self.name = name
-		self.disconnectReason = "Quit"
+		self.disconnectReason = "Connection Closed"
 		self.pingTimer = AsyncTimer(1, self.ping)
 		self.pingTimeoutTimer: Optional[AsyncTimer] = None
 
@@ -31,7 +31,7 @@ class User:
 		self.pingTimer = AsyncTimer(self.pingInterval, self.ping)
 
 	async def send(self, data: dict[str, Any]) -> None:
-		dataEncoded = json.dumps(data)
+		dataEncoded = json.dumps(data, separators = (",", ":"))
 		logger.info("[OUT] [%s - %s] %s", self.name, self.address, dataEncoded)
 		await self.websocket.send(dataEncoded)
 

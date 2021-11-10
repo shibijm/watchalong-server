@@ -19,11 +19,11 @@ class WebSocketServer():
 		asyncio.run(self.start())
 
 	async def start(self) -> None:
-		server = await serve(self.connectionHandler, None, self.port)
+		server = await serve(self.connectionHandler, None, self.port, ping_interval = None, ping_timeout = None)
 		await server.wait_closed()
 
 	def broadcast(self, data: dict[str, Any], excludedUser: Optional[User] = None) -> None:
-		dataEncoded = json.dumps(data)
+		dataEncoded = json.dumps(data, separators = (",", ":"))
 		logger.info("[BROADCAST] %s", dataEncoded)
 		broadcast([user.websocket for user in users if user != excludedUser], dataEncoded)
 
@@ -64,7 +64,7 @@ class WebSocketServer():
 						action = data["payload"]["action"]
 						self.lowestTime = data["payload"]["time"]
 						totalOtherUsers = len(users) - 1
-						if (totalOtherUsers == 0):
+						if totalOtherUsers == 0:
 							self.broadcast({ "event": "PLAY_PAUSE", "payload": { "action": action, "at": self.lowestTime }})
 						else:
 							self.broadcast({ "event": "STATUS_REQUEST", "payload": { "action": action, "requestingUser": { "name": user.name } }}, user)
@@ -78,16 +78,17 @@ class WebSocketServer():
 							continue
 						self.lowestTime = min(self.lowestTime, data["payload"]["time"])
 						self.pendingResponses -= 1
-						if (self.pendingResponses == 0):
+						if self.pendingResponses == 0:
 							self.broadcast({ "event": "PLAY_PAUSE", "payload": { "action": self.pendingAction, "at": self.lowestTime }})
 							self.pendingAction = ""
 					case "QUIT":
+						user.disconnectReason = "Quit"
 						await websocket.close()
 		except ConnectionClosedError:
 			pass
 		except:
 			traceback.print_exc()
-		if (user):
+		if user:
 			logger.info("[DISCONNECT] %s - %s (%s)", user.name, user.address, user.disconnectReason)
 			users.remove(user)
 			self.broadcastMessage(f"{user.name} has left ({user.disconnectReason})")
