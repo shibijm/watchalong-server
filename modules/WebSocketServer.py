@@ -31,6 +31,7 @@ class WebSocketServer():
 		self.broadcast({ "event": "MESSAGE", "payload": message }, excludedUser)
 
 	async def connectionHandler(self, websocket: WebSocketServerProtocol, _path: str) -> None:
+		logger.info(websocket.request_headers)
 		address = f"{websocket.remote_address[0]}:{websocket.remote_address[1]}"
 		logger.info("[CONNECT] %s", address)
 		user: Optional[User] = None
