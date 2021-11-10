@@ -1,18 +1,13 @@
-from models import Client
+from helpers.logging import logger
 from modules import KeepAlive, WebSocketServer
-from SimpleWebSocketServer import SimpleWebSocketServer
 import os
 
-clients = []
-Client.clients = clients
-KeepAlive.clients = clients
-WebSocketServer.clients = clients
-
 isHeroku = "PORT" in os.environ
-if (isHeroku):
-	keepAlive = KeepAlive()
-	keepAlive.daemon = True
-	keepAlive.start()
-server = SimpleWebSocketServer("", WebSocketServer.port, WebSocketServer)
-print("Websocket Server Running on Port " + str(WebSocketServer.port))
-server.serveforever()
+port = int(os.environ["port"]) if isHeroku else 22334
+
+if isHeroku:
+	logger.info("Heroku detected, activating keep-alive mode")
+	KeepAlive()
+
+logger.info("Starting websocket server on port %s", port)
+WebSocketServer(port)

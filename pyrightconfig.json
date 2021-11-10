@@ -1,0 +1,7 @@
+{
+	"reportImportCycles": "information",
+	"reportMissingTypeStubs": "information",
+	"reportUnknownArgumentType": "none",
+	"reportUnknownMemberType": "none",
+	"reportUntypedFunctionDecorator": "none"
+}
