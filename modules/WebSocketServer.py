@@ -62,6 +62,10 @@ class WebSocketServer():
 						if not name or not room:
 							logger.error("Incomplete envelope received from %s", address)
 							continue
+						existingUsers = [user for user in users if user.name == name and user.room == room]
+						if len(existingUsers) > 0:
+							await websocket.close()
+							continue
 						user = User(websocket, address, name, room)
 						users.append(user)
 						self.broadcast(user.room, { "type": "USER_JOINED", "data": { "name": user.name } }, user)
