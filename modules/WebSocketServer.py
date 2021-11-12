@@ -30,6 +30,13 @@ class WebSocketServer():
 	def broadcastMessage(self, room: str, message: str, excludedUser: Optional[User] = None) -> None:
 		self.broadcast(room, { "type": "MESSAGE", "data": message }, excludedUser)
 
+	async def sendErrorAndClose(self, websocket: WebSocketServerProtocol, errorMessage: str, address: str):
+		envelope = { "type": "ERROR", "data": errorMessage }
+		envelopeEncoded = json.dumps(envelope, separators = (",", ":"))
+		logger.info("[OUT] [%s] %s", address, envelopeEncoded)
+		await websocket.send(envelopeEncoded)
+		await websocket.close()
+
 	async def connectionHandler(self, websocket: WebSocketServerProtocol, _path: str) -> None:
 		if "X-Forwarded-For" in websocket.request_headers:
 			address = websocket.request_headers["X-Forwarded-For"]
@@ -48,23 +55,23 @@ class WebSocketServer():
 					logger.error("Malformed JSON received from %s", address)
 					continue
 				if "type" not in envelope or "data" not in envelope:
-					logger.error("Incomplete envelope received from %s", address)
+					await self.sendErrorAndClose(websocket, "Incomplete envelope received", address)
 					continue
 				data = envelope["data"]
 				if not user:
 					logger.info("[IN] [%s] %s", address, envelopeEncoded)
 					if envelope["type"] == "HANDSHAKE":
 						if "name" not in data or "room" not in data:
-							logger.error("Incomplete envelope received from %s", address)
+							await self.sendErrorAndClose(websocket, "Incomplete envelope received", address)
 							continue
 						name = data["name"].strip()
 						room = data["room"].strip()
 						if not name or not room:
-							logger.error("Incomplete envelope received from %s", address)
+							await self.sendErrorAndClose(websocket, "Incomplete envelope received", address)
 							continue
 						existingUsers = [user for user in users if user.name == name and user.room == room]
 						if len(existingUsers) > 0:
-							await websocket.close()
+							await self.sendErrorAndClose(websocket, "Another user in the room you're trying to join already has your name", address)
 							continue
 						user = User(websocket, address, name, room)
 						users.append(user)
