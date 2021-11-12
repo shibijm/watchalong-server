@@ -25,7 +25,7 @@ class User:
 			self.pingTimeoutTimer.cancel()
 
 	async def ping(self) -> None:
-		await self.send({ "type": "PING", "payload": None })
+		await self.send({ "type": "PING", "data": None })
 		self.pingTimeoutTimer = AsyncTimer(self.pingTimeoutDelay, self.pingTimeout)
 
 	async def pingTimeout(self) -> None:
@@ -37,10 +37,10 @@ class User:
 		self.pingTimeoutTimer.cancel()
 		self.pingTimer = AsyncTimer(self.pingInterval, self.ping)
 
-	async def send(self, data: dict[str, Any]) -> None:
-		dataEncoded = json.dumps(data, separators = (",", ":"))
-		logger.info("[OUT] [%s] [%s - %s] %s", self.room, self.name, self.address, dataEncoded)
-		await self.websocket.send(dataEncoded)
+	async def send(self, envelope: dict[str, Any]) -> None:
+		envelopeEncoded = json.dumps(envelope, separators = (",", ":"))
+		logger.info("[OUT] [%s] [%s - %s] %s", self.room, self.name, self.address, envelopeEncoded)
+		await self.websocket.send(envelopeEncoded)
 
 	async def sendMessage(self, message: str) -> None:
-		await self.send({ "type": "MESSAGE", "payload": message })
+		await self.send({ "type": "MESSAGE", "data": message })
