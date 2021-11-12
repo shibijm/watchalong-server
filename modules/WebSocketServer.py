@@ -22,13 +22,13 @@ class WebSocketServer():
 		server = await serve(self.connectionHandler, None, self.port, ping_interval = None, ping_timeout = None)
 		await server.wait_closed()
 
-	def broadcast(self, room: str, data: dict[str, Any], excludedUser: Optional[User] = None) -> None:
-		dataEncoded = json.dumps(data, separators = (",", ":"))
-		logger.info("[BROADCAST] [%s] %s", room, dataEncoded)
-		broadcast([user.websocket for user in users if user != excludedUser and (user.room == room or not room)], dataEncoded)
+	def broadcast(self, room: str, envelope: dict[str, Any], excludedUser: Optional[User] = None) -> None:
+		envelopeEncoded = json.dumps(envelope, separators = (",", ":"))
+		logger.info("[BROADCAST] [%s] %s", room, envelopeEncoded)
+		broadcast([user.websocket for user in users if user != excludedUser and (user.room == room or not room)], envelopeEncoded)
 
 	def broadcastMessage(self, room: str, message: str, excludedUser: Optional[User] = None) -> None:
-		self.broadcast(room, { "event": "MESSAGE", "payload": message }, excludedUser)
+		self.broadcast(room, { "type": "MESSAGE", "data": message }, excludedUser)
 
 	async def connectionHandler(self, websocket: WebSocketServerProtocol, _path: str) -> None:
 		if "X-Forwarded-For" in websocket.request_headers:
@@ -38,64 +38,63 @@ class WebSocketServer():
 		logger.info("[CONNECT] [%s]", address)
 		user: Optional[User] = None
 		try:
-			async for dataEncoded in websocket:
-				if not isinstance(dataEncoded, str):
-					logger.error("Invalid data received from %s", address)
+			async for envelopeEncoded in websocket:
+				if not isinstance(envelopeEncoded, str):
+					logger.error("Invalid envelope received from %s", address)
 					continue
 				try:
-					data: dict[str, Any] = json.loads(dataEncoded)
+					envelope: dict[str, Any] = json.loads(envelopeEncoded)
 				except:
 					logger.error("Malformed JSON received from %s", address)
 					continue
-				if "event" not in data or "payload" not in data:
-					logger.error("Incomplete data received from %s", address)
+				if "type" not in envelope or "data" not in envelope:
+					logger.error("Incomplete envelope received from %s", address)
 					continue
-				event = data["event"]
-				payload = data["payload"]
+				data = envelope["data"]
 				if not user:
-					logger.info("[IN] [%s] %s", address, dataEncoded)
-					if event == "HANDSHAKE":
-						if "name" not in payload or "room" not in payload:
-							logger.error("Incomplete data received from %s", address)
+					logger.info("[IN] [%s] %s", address, envelopeEncoded)
+					if envelope["type"] == "HANDSHAKE":
+						if "name" not in data or "room" not in data:
+							logger.error("Incomplete envelope received from %s", address)
 							continue
-						name = payload["name"].strip()
-						room = payload["room"].strip()
+						name = data["name"].strip()
+						room = data["room"].strip()
 						if not name or not room:
-							logger.error("Incomplete data received from %s", address)
+							logger.error("Incomplete envelope received from %s", address)
 							continue
 						user = User(websocket, address, name, room)
 						users.append(user)
-						self.broadcast(user.room, { "event": "USER_JOINED", "payload": { "name": user.name } }, user)
-						await user.send({ "event": "HANDSHAKE", "payload": None })
+						self.broadcast(user.room, { "type": "USER_JOINED", "data": { "name": user.name } }, user)
+						await user.send({ "type": "HANDSHAKE", "data": None })
 					continue
-				logger.info("[IN] [%s] [%s - %s] %s", user.room, user.name, user.address, dataEncoded)
-				match event:
+				logger.info("[IN] [%s] [%s - %s] %s", user.room, user.name, user.address, envelopeEncoded)
+				match envelope["type"]:
 					case "PONG":
 						user.handlePong()
 					case "USERS":
-						await user.send({ "event": "USERS", "payload": [{ "name": user.name } for user in users]})
+						await user.send({ "type": "USERS", "data": [{ "name": user.name } for user in users]})
 					case "CONTROL_MEDIA":
 						if self.pendingAction:
 							continue # TODO: Send error message
-						action = payload["action"]
-						self.lowestTime = payload["time"]
+						action = data["action"]
+						self.lowestTime = data["time"]
 						totalOtherUsers = len(users) - 1
 						if totalOtherUsers == 0:
-							self.broadcast(user.room, { "event": "CONTROL_MEDIA", "payload": { "action": action, "at": self.lowestTime }})
+							self.broadcast(user.room, { "type": "CONTROL_MEDIA", "data": { "action": action, "at": self.lowestTime }})
 						else:
-							self.broadcast(user.room, { "event": "MEDIA_STATUS", "payload": { "action": action, "requestingUser": { "name": user.name } }}, user)
+							self.broadcast(user.room, { "type": "MEDIA_STATUS", "data": { "action": action, "requestingUser": { "name": user.name } }}, user)
 							self.pendingResponses += totalOtherUsers # TODO: Track user-wise, add a timeout
 							self.pendingAction = action
 					case "MEDIA_STATUS":
 						if not self.pendingAction:
 							continue # TODO: Send error message
 						self.pendingResponses -= 1
-						if "error" in payload:
-							self.broadcastMessage(user.room, f"{user.name} failed to connect to their media player. Reason: {data['payload']['error']['message']}", user)
+						if "error" in data:
+							self.broadcastMessage(user.room, f"{user.name} failed to connect to their media player. Reason: {envelope['data']['error']['message']}", user)
 							continue
-						self.lowestTime = min(self.lowestTime, payload["time"])
+						self.lowestTime = min(self.lowestTime, data["time"])
 						if self.pendingResponses == 0:
-							self.broadcast(user.room, { "event": "CONTROL_MEDIA", "payload": { "action": self.pendingAction, "at": self.lowestTime }})
+							self.broadcast(user.room, { "type": "CONTROL_MEDIA", "data": { "action": self.pendingAction, "at": self.lowestTime }})
 							self.pendingAction = ""
 		except ConnectionClosedError:
 			if user and not websocket.close_sent:
@@ -106,6 +105,6 @@ class WebSocketServer():
 			user.cancelTimers()
 			users.remove(user)
 			logger.info("[DISCONNECT] [%s] [%s - %s] %s", user.room, user.name, user.address, user.disconnectReason)
-			self.broadcast(user.room, { "event": "USER_LEFT", "payload": { "name": user.name, "reason": user.disconnectReason } })
+			self.broadcast(user.room, { "type": "USER_LEFT", "data": { "name": user.name, "reason": user.disconnectReason } })
 		else:
 			logger.info("[DISCONNECT] [%s]", address)
