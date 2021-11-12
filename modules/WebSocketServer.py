@@ -98,8 +98,7 @@ class WebSocketServer():
 							self.broadcast(user.room, { "event": "CONTROL_MEDIA", "payload": { "action": self.pendingAction, "at": self.lowestTime }})
 							self.pendingAction = ""
 					case "QUIT":
-						user.disconnectReason = "Quit"
-						await websocket.close()
+						await user.disconnect("Quit")
 		except ConnectionClosedError:
 			pass
 		except:

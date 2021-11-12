@@ -18,13 +18,20 @@ class User:
 		self.pingTimer = AsyncTimer(1, self.ping)
 		self.pingTimeoutTimer: Optional[AsyncTimer] = None
 
+	async def disconnect(self, reason: str) -> None:
+		if self.pingTimer.active:
+			self.pingTimer.cancel()
+		if self.pingTimeoutTimer and self.pingTimeoutTimer.active:
+			self.pingTimeoutTimer.cancel()
+		self.disconnectReason = reason
+		await self.websocket.close()
+
 	async def ping(self) -> None:
 		await self.send({ "event": "PING", "payload": None })
 		self.pingTimeoutTimer = AsyncTimer(self.pingTimeoutDelay, self.pingTimeout)
 
 	async def pingTimeout(self) -> None:
-		self.disconnectReason = "Ping Timeout"
-		await self.websocket.close()
+		await self.disconnect("Ping Timeout")
 
 	def handlePong(self) -> None:
 		assert self.pingTimeoutTimer

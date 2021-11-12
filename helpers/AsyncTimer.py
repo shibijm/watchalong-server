@@ -19,13 +19,16 @@ class AsyncTimer:
 			Keyword arguments to be passed to the callback.
 		"""
 		self.task = asyncio.create_task(self.delayedCallback(delay, callback, *args, **kwargs))
+		self.active = True
 
 	def cancel(self) -> None:
 		"""
 		Cancels the scheduled callback.
 		"""
 		self.task.cancel()
+		self.active = False
 
 	async def delayedCallback(self, delay: int, callback: Callable[..., Coroutine[None, None, Any]], *args: Any, **kwargs: Any) -> None:
 		await asyncio.sleep(delay)
+		self.active = False
 		await callback(*args, **kwargs)
