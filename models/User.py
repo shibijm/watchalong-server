@@ -14,7 +14,7 @@ class User:
 		self.address = address
 		self.name = name
 		self.room = room
-		self.disconnectReason = "Connection Closed"
+		self.disconnectReason = "Quit"
 		self.pingTimer = AsyncTimer(1, self.ping)
 		self.pingTimeoutTimer: Optional[AsyncTimer] = None
 

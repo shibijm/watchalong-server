@@ -84,7 +84,7 @@ class WebSocketServer():
 							self.broadcast(user.room, { "event": "CONTROL_MEDIA", "payload": { "action": action, "at": self.lowestTime }})
 						else:
 							self.broadcast(user.room, { "event": "MEDIA_STATUS", "payload": { "action": action, "requestingUser": { "name": user.name } }}, user)
-							self.pendingResponses += totalOtherUsers # TODO: Track user-wise
+							self.pendingResponses += totalOtherUsers # TODO: Track user-wise, add a timeout
 							self.pendingAction = action
 					case "MEDIA_STATUS":
 						if not self.pendingAction:
@@ -97,10 +97,9 @@ class WebSocketServer():
 						if self.pendingResponses == 0:
 							self.broadcast(user.room, { "event": "CONTROL_MEDIA", "payload": { "action": self.pendingAction, "at": self.lowestTime }})
 							self.pendingAction = ""
-					case "QUIT":
-						await user.disconnect("Quit")
 		except ConnectionClosedError:
-			pass
+			if user:
+				user.disconnectReason = "Connection Closed"
 		except:
 			traceback.print_exc()
 		if user:
