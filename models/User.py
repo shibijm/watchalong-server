@@ -25,7 +25,6 @@ class User:
 			self.pingTimeoutTimer.cancel()
 
 	async def disconnect(self, reason: str) -> None:
-		self.cancelTimers()
 		self.disconnectReason = reason
 		await self.websocket.close()
 
