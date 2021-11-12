@@ -57,23 +57,23 @@ class WebSocketServer():
 					logger.error("Malformed JSON received from %s", address)
 					continue
 				if "type" not in envelope or "data" not in envelope:
-					await sendErrorAndClose("Incomplete envelope received")
+					await sendErrorAndClose("Incomplete envelope received.")
 					continue
 				data = envelope["data"]
 				if not user:
 					logger.info("[IN] [%s] %s", address, envelopeEncoded)
 					if envelope["type"] == "HANDSHAKE":
 						if "name" not in data or "room" not in data:
-							await sendErrorAndClose("Incomplete envelope received")
+							await sendErrorAndClose("Incomplete envelope received.")
 							continue
 						name = data["name"].strip()
 						room = data["room"].strip()
 						if not name or not room:
-							await sendErrorAndClose("Incomplete envelope received")
+							await sendErrorAndClose("Incomplete envelope received.")
 							continue
 						existingUsers = [user for user in users if user.name == name and user.room == room]
 						if len(existingUsers) > 0:
-							await sendErrorAndClose("Another user in the room you're trying to join already has your name")
+							await sendErrorAndClose("The specified name is being used by another user in the room you're trying to join.")
 							continue
 						user = User(websocket, address, name, room)
 						users.append(user)
