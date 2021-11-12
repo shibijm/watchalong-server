@@ -1,3 +1,4 @@
+import functools
 from helpers.logging import logger
 from helpers.stores import users
 from models import User
@@ -30,7 +31,7 @@ class WebSocketServer():
 	def broadcastMessage(self, room: str, message: str, excludedUser: Optional[User] = None) -> None:
 		self.broadcast(room, { "type": "MESSAGE", "data": message }, excludedUser)
 
-	async def sendErrorAndClose(self, websocket: WebSocketServerProtocol, errorMessage: str, address: str):
+	async def sendErrorAndClose(self, errorMessage: str, websocket: WebSocketServerProtocol, address: str):
 		envelope = { "type": "ERROR", "data": errorMessage }
 		envelopeEncoded = json.dumps(envelope, separators = (",", ":"))
 		logger.info("[OUT] [%s] %s", address, envelopeEncoded)
@@ -42,6 +43,7 @@ class WebSocketServer():
 			address = websocket.request_headers["X-Forwarded-For"]
 		else:
 			address = f"{websocket.remote_address[0]}:{websocket.remote_address[1]}"
+		sendErrorAndClose = functools.partial(self.sendErrorAndClose, websocket = websocket, address = address)
 		logger.info("[CONNECT] [%s]", address)
 		user: Optional[User] = None
 		try:
@@ -55,23 +57,23 @@ class WebSocketServer():
 					logger.error("Malformed JSON received from %s", address)
 					continue
 				if "type" not in envelope or "data" not in envelope:
-					await self.sendErrorAndClose(websocket, "Incomplete envelope received", address)
+					await sendErrorAndClose("Incomplete envelope received")
 					continue
 				data = envelope["data"]
 				if not user:
 					logger.info("[IN] [%s] %s", address, envelopeEncoded)
 					if envelope["type"] == "HANDSHAKE":
 						if "name" not in data or "room" not in data:
-							await self.sendErrorAndClose(websocket, "Incomplete envelope received", address)
+							await sendErrorAndClose("Incomplete envelope received")
 							continue
 						name = data["name"].strip()
 						room = data["room"].strip()
 						if not name or not room:
-							await self.sendErrorAndClose(websocket, "Incomplete envelope received", address)
+							await sendErrorAndClose("Incomplete envelope received")
 							continue
 						existingUsers = [user for user in users if user.name == name and user.room == room]
 						if len(existingUsers) > 0:
-							await self.sendErrorAndClose(websocket, "Another user in the room you're trying to join already has your name", address)
+							await sendErrorAndClose("Another user in the room you're trying to join already has your name")
 							continue
 						user = User(websocket, address, name, room)
 						users.append(user)
