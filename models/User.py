@@ -41,6 +41,3 @@ class User:
 		envelopeEncoded = json.dumps(envelope, separators = (",", ":"))
 		logger.info("[OUT] [%s] [%s - %s] %s", self.room, self.name, self.address, envelopeEncoded)
 		await self.websocket.send(envelopeEncoded)
-
-	async def sendMessage(self, message: str) -> None:
-		await self.send({ "type": "MESSAGE", "data": message })
