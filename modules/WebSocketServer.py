@@ -72,7 +72,7 @@ class WebSocketServer():
 					case "PONG":
 						user.handlePong()
 					case "USERS":
-						await user.send({ "type": "USERS", "data": [{ "name": user.name } for user in users]})
+						await user.send({ "type": "USERS", "data": [{ "name": u.name } for u in users if u.room == user.room]})
 					case "CONTROL_MEDIA":
 						if self.pendingAction:
 							continue # TODO: Send error message
