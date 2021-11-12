@@ -104,8 +104,9 @@ class WebSocketServer():
 		except:
 			traceback.print_exc()
 		if user:
+			user.cancelTimers()
 			users.remove(user)
 			logger.info("[DISCONNECT] [%s] [%s - %s] %s", user.room, user.name, user.address, user.disconnectReason)
 			self.broadcast(user.room, { "event": "USER_LEFT", "payload": { "name": user.name, "reason": user.disconnectReason } })
 		else:
-			logger.info("[DISCONNECT] %s", address)
+			logger.info("[DISCONNECT] [%s]", address)
