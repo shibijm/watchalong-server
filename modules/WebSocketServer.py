@@ -25,9 +25,6 @@ class WebSocketServer():
 		logger.info("[BROADCAST] [%s] %s", room, envelopeEncoded)
 		broadcast([user.websocket for user in users if user != excludedUser and (user.room == room or not room)], envelopeEncoded)
 
-	def broadcastMessage(self, room: str, message: str, excludedUser: Optional[User] = None) -> None:
-		self.broadcast(room, { "type": "MESSAGE", "data": message }, excludedUser)
-
 	async def closeAbnormally(self, errorMessage: str, websocket: WebSocketServerProtocol, address: str):
 		logger.info("[OUT] [%s] Abnormal Close: %s", address, errorMessage)
 		await websocket.close(1002, errorMessage)
