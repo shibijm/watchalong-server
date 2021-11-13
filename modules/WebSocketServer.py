@@ -14,7 +14,7 @@ class WebSocketServer():
 
 	def __init__(self, port: int) -> None:
 		self.port = port
-		self.lowestTime = 0
+		self.lowestPosition = 0
 		self.pendingResponses = 0
 		self.pendingAction = ""
 		asyncio.run(self.start())
@@ -64,16 +64,16 @@ class WebSocketServer():
 					logger.info("[IN] [%s] %s", address, envelopeEncoded)
 					if envelope["type"] == "HANDSHAKE":
 						if "name" not in data or "room" not in data:
-							await sendErrorAndClose("Incomplete envelope received.")
+							await sendErrorAndClose("Invalid name or room.")
 							continue
 						name = data["name"].strip()
 						room = data["room"].strip()
 						if not name or not room:
-							await sendErrorAndClose("Incomplete envelope received.")
+							await sendErrorAndClose("Invalid name or room.")
 							continue
 						existingUsers = [user for user in users if user.name == name and user.room == room]
 						if len(existingUsers) > 0:
-							await sendErrorAndClose("The specified name is being used by another user in the room you're trying to join.")
+							await sendErrorAndClose("The specified name is already taken by another user in the room you're trying to join.")
 							continue
 						user = User(websocket, address, name, room)
 						users.append(user)
@@ -90,10 +90,10 @@ class WebSocketServer():
 						if self.pendingAction:
 							continue # TODO: Send error message
 						action = data["action"]
-						self.lowestTime = data["time"]
+						self.lowestPosition = data["position"]
 						totalOtherUsers = len(users) - 1
 						if totalOtherUsers == 0:
-							self.broadcast(user.room, { "type": "CONTROL_MEDIA", "data": { "action": action, "at": self.lowestTime }})
+							self.broadcast(user.room, { "type": "CONTROL_MEDIA", "data": { "action": action, "position": self.lowestPosition }})
 						else:
 							self.broadcast(user.room, { "type": "MEDIA_STATUS", "data": { "action": action, "requestingUser": { "name": user.name } }}, user)
 							self.pendingResponses += totalOtherUsers # TODO: Track user-wise, add a timeout
@@ -103,17 +103,19 @@ class WebSocketServer():
 							continue # TODO: Send error message
 						self.pendingResponses -= 1
 						if "error" in data:
-							self.broadcastMessage(user.room, f"{user.name} failed to connect to their media player. Reason: {envelope['data']['error']['message']}", user)
+							self.broadcastMessage(user.room, f"{user.name} is not connected to their media player", user)
 							continue
-						self.lowestTime = min(self.lowestTime, data["time"])
+						self.lowestPosition = min(self.lowestPosition, data["position"])
 						if self.pendingResponses == 0:
-							self.broadcast(user.room, { "type": "CONTROL_MEDIA", "data": { "action": self.pendingAction, "at": self.lowestTime }})
+							self.broadcast(user.room, { "type": "CONTROL_MEDIA", "data": { "action": self.pendingAction, "position": self.lowestPosition }})
 							self.pendingAction = ""
 		except ConnectionClosedError:
 			if user and not websocket.close_sent:
 				user.disconnectReason = "Connection Closed"
 		except:
 			traceback.print_exc()
+			if user:
+				user.disconnectReason = "Error"
 		if user:
 			user.cancelTimers()
 			users.remove(user)
