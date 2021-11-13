@@ -82,7 +82,6 @@ class WebSocketServer():
 						await user.send({ "type": "USERS", "data": [{ "name": u.name } for u in users if u.room == user.room]})
 					case "CONTROL_MEDIA":
 						self.broadcast(user.room, { "type": "CONTROL_MEDIA", "data": { "action": data["action"], "position": data["position"], "requestingUser": { "name": user.name } } })
-						self.broadcast(user.room, { "type": "MEDIA_STATE", "data": None })
 		except ConnectionClosedError:
 			if user and not websocket.close_sent:
 				user.disconnectReason = "Connection Closed"
