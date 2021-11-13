@@ -9,5 +9,5 @@ if isHeroku:
 	logger.info("Heroku detected, activating keep-alive mode")
 	KeepAlive()
 
-logger.info("Starting websocket server on port %s", port)
+logger.info("Starting WebSocket server on port %s", port)
 WebSocketServer(port)

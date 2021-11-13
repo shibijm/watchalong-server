@@ -40,5 +40,6 @@ class User:
 
 	async def send(self, envelope: dict[str, Any]) -> None:
 		envelopeEncoded = json.dumps(envelope, separators = (",", ":"))
-		logger.info("[OUT] [%s] [%s - %s] %s", self.room, self.name, self.address, envelopeEncoded)
+		if (envelope["type"] != "PING"):
+			logger.info("[OUT] [%s] [%s - %s] %s", self.room, self.name, self.address, envelopeEncoded)
 		await self.websocket.send(envelopeEncoded)

@@ -71,7 +71,8 @@ class WebSocketServer():
 						self.broadcast(user.room, { "type": "USER_JOINED", "data": { "name": user.name } }, user)
 						await user.send({ "type": "HANDSHAKE", "data": None })
 					continue
-				logger.info("[IN] [%s] [%s - %s] %s", user.room, user.name, user.address, envelopeEncoded)
+				if (envelope["type"] != "PONG"):
+					logger.info("[IN] [%s] [%s - %s] %s", user.room, user.name, user.address, envelopeEncoded)
 				match envelope["type"]:
 					case "PONG":
 						user.handlePong()
@@ -83,7 +84,7 @@ class WebSocketServer():
 			if user and not websocket.close_sent:
 				user.disconnectReason = "Connection Closed"
 		except:
-			traceback.print_exc()
+			logger.error(traceback.format_exc())
 			if user:
 				user.disconnectReason = "Error"
 			await websocket.close(1011)
