@@ -113,7 +113,7 @@ class WebSocketServer():
 			traceback.print_exc()
 			if user:
 				user.disconnectReason = "Error"
-			await websocket.close(1011, "Internal server error.")
+			await websocket.close(1011)
 		if user:
 			user.cancelTimers()
 			users.remove(user)
