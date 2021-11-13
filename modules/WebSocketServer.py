@@ -31,49 +31,46 @@ class WebSocketServer():
 	def broadcastMessage(self, room: str, message: str, excludedUser: Optional[User] = None) -> None:
 		self.broadcast(room, { "type": "MESSAGE", "data": message }, excludedUser)
 
-	async def sendErrorAndClose(self, errorMessage: str, websocket: WebSocketServerProtocol, address: str):
-		envelope = { "type": "ERROR", "data": errorMessage }
-		envelopeEncoded = json.dumps(envelope, separators = (",", ":"))
-		logger.info("[OUT] [%s] %s", address, envelopeEncoded)
-		await websocket.send(envelopeEncoded)
-		await websocket.close()
+	async def closeAbnormally(self, errorMessage: str, websocket: WebSocketServerProtocol, address: str):
+		logger.info("[OUT] [%s] Abnormal Close: %s", address, errorMessage)
+		await websocket.close(1002, errorMessage)
 
 	async def connectionHandler(self, websocket: WebSocketServerProtocol, _path: str) -> None:
 		if "X-Forwarded-For" in websocket.request_headers:
 			address = websocket.request_headers["X-Forwarded-For"]
 		else:
 			address = f"{websocket.remote_address[0]}:{websocket.remote_address[1]}"
-		sendErrorAndClose = functools.partial(self.sendErrorAndClose, websocket = websocket, address = address)
+		closeAbnormally = functools.partial(self.closeAbnormally, websocket = websocket, address = address)
 		logger.info("[CONNECT] [%s]", address)
 		user: Optional[User] = None
 		try:
 			async for envelopeEncoded in websocket:
 				if not isinstance(envelopeEncoded, str):
-					logger.error("Invalid envelope received from %s", address)
+					await closeAbnormally("Invalid envelope received.")
 					continue
 				try:
 					envelope: dict[str, Any] = json.loads(envelopeEncoded)
 				except:
-					logger.error("Malformed JSON received from %s", address)
+					await closeAbnormally("Malformed JSON received.")
 					continue
 				if "type" not in envelope or "data" not in envelope:
-					await sendErrorAndClose("Incomplete envelope received.")
+					await closeAbnormally("Incomplete envelope received.")
 					continue
 				data = envelope["data"]
 				if not user:
 					logger.info("[IN] [%s] %s", address, envelopeEncoded)
 					if envelope["type"] == "HANDSHAKE":
 						if "name" not in data or "room" not in data:
-							await sendErrorAndClose("Invalid name or room.")
+							await closeAbnormally("Invalid name or room.")
 							continue
 						name = data["name"].strip()
 						room = data["room"].strip()
 						if not name or not room:
-							await sendErrorAndClose("Invalid name or room.")
+							await closeAbnormally("Invalid name or room.")
 							continue
 						existingUsers = [user for user in users if user.name == name and user.room == room]
 						if len(existingUsers) > 0:
-							await sendErrorAndClose("The specified name is already taken by another user in the room you're trying to join.")
+							await closeAbnormally("The specified name is already taken by another user in the room you're trying to join.")
 							continue
 						user = User(websocket, address, name, room)
 						users.append(user)
@@ -104,8 +101,8 @@ class WebSocketServer():
 						self.pendingResponses -= 1
 						if "error" in data:
 							self.broadcastMessage(user.room, f"{user.name} is not connected to their media player", user)
-							continue
-						self.lowestPosition = min(self.lowestPosition, data["position"])
+						else:
+							self.lowestPosition = min(self.lowestPosition, data["position"])
 						if self.pendingResponses == 0:
 							self.broadcast(user.room, { "type": "CONTROL_MEDIA", "data": { "action": self.pendingAction, "position": self.lowestPosition }})
 							self.pendingAction = ""
@@ -116,6 +113,7 @@ class WebSocketServer():
 			traceback.print_exc()
 			if user:
 				user.disconnectReason = "Error"
+			await websocket.close(1011, "Internal server error.")
 		if user:
 			user.cancelTimers()
 			users.remove(user)

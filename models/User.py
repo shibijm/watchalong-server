@@ -29,8 +29,9 @@ class User:
 		self.pingTimeoutTimer = AsyncTimer(self.pingTimeoutDelay, self.pingTimeout)
 
 	async def pingTimeout(self) -> None:
+		print("timeout triggered")
 		self.disconnectReason = "Ping Timeout"
-		await self.websocket.close()
+		await self.websocket.close(1002, "Ping response not received in time.")
 
 	def handlePong(self) -> None:
 		assert self.pingTimeoutTimer
