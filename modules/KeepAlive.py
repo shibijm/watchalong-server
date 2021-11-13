@@ -12,8 +12,6 @@ class KeepAlive(threading.Thread):
 
 	def run(self) -> None:
 		while (True):
+			time.sleep(900)
 			if (len(users) > 0):
 				requests.get("https://watchalong-s.herokuapp.com")
-				time.sleep(900)
-			else:
-				time.sleep(60)
