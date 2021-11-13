@@ -14,9 +14,6 @@ class WebSocketServer():
 
 	def __init__(self, port: int) -> None:
 		self.port = port
-		self.lowestPosition = 0
-		self.pendingResponses = 0
-		self.pendingAction = ""
 		asyncio.run(self.start())
 
 	async def start(self) -> None:
@@ -84,28 +81,8 @@ class WebSocketServer():
 					case "USERS":
 						await user.send({ "type": "USERS", "data": [{ "name": u.name } for u in users if u.room == user.room]})
 					case "CONTROL_MEDIA":
-						if self.pendingAction:
-							continue # TODO: Send error message
-						action = data["action"]
-						self.lowestPosition = data["position"]
-						totalOtherUsers = len(users) - 1
-						if totalOtherUsers == 0:
-							self.broadcast(user.room, { "type": "CONTROL_MEDIA", "data": { "action": action, "position": self.lowestPosition }})
-						else:
-							self.broadcast(user.room, { "type": "MEDIA_STATUS", "data": { "action": action, "requestingUser": { "name": user.name } }}, user)
-							self.pendingResponses += totalOtherUsers # TODO: Track user-wise, add a timeout
-							self.pendingAction = action
-					case "MEDIA_STATUS":
-						if not self.pendingAction:
-							continue # TODO: Send error message
-						self.pendingResponses -= 1
-						if "error" in data:
-							self.broadcastMessage(user.room, f"{user.name} is not connected to their media player", user)
-						else:
-							self.lowestPosition = min(self.lowestPosition, data["position"])
-						if self.pendingResponses == 0:
-							self.broadcast(user.room, { "type": "CONTROL_MEDIA", "data": { "action": self.pendingAction, "position": self.lowestPosition }})
-							self.pendingAction = ""
+						self.broadcast(user.room, { "type": "CONTROL_MEDIA", "data": { "action": data["action"], "position": data["position"], "requestingUser": { "name": user.name } } }, user)
+						self.broadcast(user.room, { "type": "MEDIA_STATE", "data": None }, user)
 		except ConnectionClosedError:
 			if user and not websocket.close_sent:
 				user.disconnectReason = "Connection Closed"
