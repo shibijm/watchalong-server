@@ -1,12 +1,12 @@
-import functools
 from helpers.logging import logger
 from helpers.stores import users
-from models import User
-from typing import Any, Optional
+from models import User, WebSocketEnvelope
+from typing import Optional
 from websockets.exceptions import ConnectionClosedError
 from websockets.legacy.protocol import broadcast
 from websockets.server import serve, WebSocketServerProtocol
 import asyncio
+import functools
 import json
 import traceback
 
@@ -20,14 +20,19 @@ class WebSocketServer():
 		server = await serve(self.connectionHandler, None, self.port, ping_interval = None, ping_timeout = None)
 		await server.wait_closed()
 
-	def broadcast(self, room: str, envelope: dict[str, Any], excludedUser: Optional[User] = None) -> None:
-		envelopeEncoded = json.dumps(envelope, separators = (",", ":"))
-		logger.info("[BROADCAST] [%s] %s", room, envelopeEncoded)
-		broadcast([user.websocket for user in users if user != excludedUser and (user.room == room or not room)], envelopeEncoded)
+	def broadcast(self, room: str, envelope: WebSocketEnvelope, excludedUser: Optional[User] = None) -> None:
+		userWebSockets = [user.websocket for user in self.getUsersInRoom(room) if user != excludedUser]
+		if (len(userWebSockets) > 0):
+			envelopeEncoded = json.dumps(envelope, separators = (",", ":"))
+			logger.info("[BROADCAST] [%s] %s", room, envelopeEncoded)
+			broadcast(userWebSockets, envelopeEncoded)
 
 	async def closeAbnormally(self, errorMessage: str, websocket: WebSocketServerProtocol, address: str):
 		logger.info("[OUT] [%s] Abnormal Close: %s", address, errorMessage)
 		await websocket.close(1002, errorMessage)
+
+	def getUsersInRoom(self, room: str):
+		return [user for user in users if user.room == room]
 
 	async def connectionHandler(self, websocket: WebSocketServerProtocol, _path: str) -> None:
 		if "X-Forwarded-For" in websocket.request_headers:
@@ -43,7 +48,7 @@ class WebSocketServer():
 					await closeAbnormally("Invalid envelope received.")
 					continue
 				try:
-					envelope: dict[str, Any] = json.loads(envelopeEncoded)
+					envelope: WebSocketEnvelope = json.loads(envelopeEncoded)
 				except:
 					await closeAbnormally("Malformed JSON received.")
 					continue
@@ -62,7 +67,7 @@ class WebSocketServer():
 						if not name or not room:
 							await closeAbnormally("Invalid name or room.")
 							continue
-						existingUsers = [user for user in users if user.name == name and user.room == room]
+						existingUsers = [user for user in self.getUsersInRoom(room) if user.name == name]
 						if len(existingUsers) > 0:
 							await closeAbnormally("The specified name is already taken by another user in the room you're trying to join.")
 							continue
@@ -71,15 +76,17 @@ class WebSocketServer():
 						self.broadcast(user.room, { "type": "USER_JOINED", "data": { "name": user.name } }, user)
 						await user.send({ "type": "HANDSHAKE", "data": None })
 					continue
-				if (envelope["type"] != "PONG"):
-					logger.info("[IN] [%s] [%s - %s] %s", user.room, user.name, user.address, envelopeEncoded)
+				if (envelope["type"] == "PONG"):
+					user.handlePong()
+					continue
+				logger.info("[IN] [%s] [%s - %s] %s", user.room, user.name, user.address, envelopeEncoded)
 				match envelope["type"]:
-					case "PONG":
-						user.handlePong()
 					case "USERS":
-						await user.send({ "type": "USERS", "data": [{ "name": u.name } for u in users if u.room == user.room]})
+						await user.send({ "type": "USERS", "data": [{ "name": user.name } for user in self.getUsersInRoom(user.room)]})
 					case "CONTROL_MEDIA":
-						self.broadcast(user.room, { "type": "CONTROL_MEDIA", "data": { "action": data["action"], "position": data["position"], "requestingUser": { "name": user.name } } })
+						self.broadcast(user.room, { "type": "CONTROL_MEDIA", "data": { "requestingUser": { "name": user.name }, "action": data["action"], "position": data["position"] } }, user)
+					case "MEDIA_STATE":
+						self.broadcast(user.room, { "type": "MEDIA_STATE", "data": { "user": { "name": user.name }, "state": data["state"], "position": data["position"] } }, user)
 		except ConnectionClosedError:
 			if user and not websocket.close_sent:
 				user.disconnectReason = "Connection Closed"

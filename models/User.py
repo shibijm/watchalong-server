@@ -1,6 +1,7 @@
+from .WebSocketEnvelope import WebSocketEnvelope
 from helpers import AsyncTimer
 from helpers.logging import logger
-from typing import Any, Optional
+from typing import Optional
 from websockets.legacy.server import WebSocketServerProtocol
 import json
 
@@ -29,7 +30,6 @@ class User:
 		self.pingTimeoutTimer = AsyncTimer(self.pingTimeoutDelay, self.pingTimeout)
 
 	async def pingTimeout(self) -> None:
-		print("timeout triggered")
 		self.disconnectReason = "Ping Timeout"
 		await self.websocket.close(1002, "Ping response not received in time.")
 
@@ -38,7 +38,7 @@ class User:
 		self.pingTimeoutTimer.cancel()
 		self.pingTimer = AsyncTimer(self.pingInterval, self.ping)
 
-	async def send(self, envelope: dict[str, Any]) -> None:
+	async def send(self, envelope: WebSocketEnvelope) -> None:
 		envelopeEncoded = json.dumps(envelope, separators = (",", ":"))
 		if (envelope["type"] != "PING"):
 			logger.info("[OUT] [%s] [%s - %s] %s", self.room, self.name, self.address, envelopeEncoded)
