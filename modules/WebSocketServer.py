@@ -91,7 +91,7 @@ class WebSocketServer():
 			if user and not websocket.close_sent:
 				user.disconnectReason = "Connection Closed"
 		except:
-			logger.error(traceback.format_exc())
+			logger.error(traceback.format_exc().strip())
 			if user:
 				user.disconnectReason = "Error"
 			await websocket.close(1011)
