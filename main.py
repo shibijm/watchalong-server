@@ -1,5 +1,5 @@
 from helpers.logging import logger
-from modules import KeepAlive, WebSocketServer
+from core.services import KeepAlive, WebSocketServer
 import os
 
 isHeroku = "PORT" in os.environ

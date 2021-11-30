@@ -1,5 +1,5 @@
 from helpers.logging import logger
-from helpers.stores import users
+from core.store import users
 from models import User, WebSocketEnvelope
 from typing import Optional
 from websockets.exceptions import ConnectionClosedError
