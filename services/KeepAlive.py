@@ -1,4 +1,4 @@
-from core.store import users
+from .WebSocketServer import WebSocketServer
 import requests
 import threading
 import time
@@ -13,5 +13,5 @@ class KeepAlive(threading.Thread):
 	def run(self) -> None:
 		while (True):
 			time.sleep(900)
-			if (len(users) > 0):
+			if (len(WebSocketServer.users) > 0):
 				requests.get("https://watchalong-s.herokuapp.com")

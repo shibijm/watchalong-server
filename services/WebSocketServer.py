@@ -1,7 +1,6 @@
-from helpers.logging import logger
-from core.store import users
 from models import User, WebSocketEnvelope
 from typing import Optional
+from utils.logging import logger
 from websockets.exceptions import ConnectionClosedError
 from websockets.legacy.protocol import broadcast
 from websockets.server import serve, WebSocketServerProtocol
@@ -11,6 +10,8 @@ import json
 import traceback
 
 class WebSocketServer():
+
+	users: list[User] = []
 
 	def __init__(self, port: int) -> None:
 		self.port = port
@@ -32,7 +33,7 @@ class WebSocketServer():
 		await websocket.close(1002, errorMessage)
 
 	def getUsersInRoom(self, room: str):
-		return [user for user in users if user.room == room]
+		return [user for user in self.users if user.room == room]
 
 	async def connectionHandler(self, websocket: WebSocketServerProtocol, _path: str) -> None:
 		if "X-Forwarded-For" in websocket.request_headers:
@@ -72,7 +73,7 @@ class WebSocketServer():
 							await closeAbnormally("The specified name is already taken by another user in the room you're trying to join.")
 							continue
 						user = User(websocket, address, name, room)
-						users.append(user)
+						self.users.append(user)
 						self.broadcast(user.room, { "type": "USER_JOINED", "data": { "name": user.name } }, user)
 						await user.send({ "type": "HANDSHAKE", "data": None })
 					continue
@@ -81,8 +82,8 @@ class WebSocketServer():
 					continue
 				logger.info("[IN] [%s] [%s - %s] %s", user.room, user.name, user.address, envelopeEncoded)
 				match envelope["type"]:
-					case "USERS":
-						await user.send({ "type": "USERS", "data": [{ "name": user.name } for user in self.getUsersInRoom(user.room)]})
+					case "self.users":
+						await user.send({ "type": "self.users", "data": [{ "name": user.name } for user in self.getUsersInRoom(user.room)]})
 					case "CONTROL_MEDIA":
 						self.broadcast(user.room, { "type": "CONTROL_MEDIA", "data": { "requestingUser": { "name": user.name }, "action": data["action"], "position": data["position"] } }, user)
 					case "MEDIA_STATE":
@@ -97,7 +98,7 @@ class WebSocketServer():
 			await websocket.close(1011)
 		if user:
 			user.cancelTimers()
-			users.remove(user)
+			self.users.remove(user)
 			logger.info("[DISCONNECT] [%s] [%s - %s] %s", user.room, user.name, user.address, user.disconnectReason)
 			self.broadcast(user.room, { "type": "USER_LEFT", "data": { "name": user.name, "reason": user.disconnectReason } })
 		else:
