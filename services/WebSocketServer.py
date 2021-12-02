@@ -82,7 +82,7 @@ class WebSocketServer():
 					continue
 				logger.info("[IN] [%s] [%s - %s] %s", user.room, user.name, user.address, envelopeEncoded)
 				match envelope["type"]:
-					case "self.users":
+					case "USERS":
 						await user.send({ "type": "USERS", "data": [{ "name": user.name } for user in self.getUsersInRoom(user.room)]})
 					case "CONTROL_MEDIA":
 						self.broadcast(user.room, { "type": "CONTROL_MEDIA", "data": { "requestingUser": { "name": user.name }, "action": data["action"], "position": data["position"] } }, user)
