@@ -9,7 +9,7 @@ import functools
 import json
 import traceback
 
-class WebSocketServer():
+class WebSocketServer:
 
 	users: list[User] = []
 

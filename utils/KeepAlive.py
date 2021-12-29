@@ -1,4 +1,4 @@
-from .WebSocketServer import WebSocketServer
+from controllers import WebSocketServer
 import requests
 import threading
 import time
