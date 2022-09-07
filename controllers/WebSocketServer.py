@@ -28,11 +28,11 @@ class WebSocketServer:
 			logger.info("[BROADCAST] [%s] %s", room, envelopeEncoded)
 			broadcast(userWebSockets, envelopeEncoded)
 
-	async def closeAbnormally(self, errorMessage: str, websocket: WebSocketServerProtocol, address: str):
+	async def closeAbnormally(self, errorMessage: str, websocket: WebSocketServerProtocol, address: str) -> None:
 		logger.info("[OUT] [%s] Abnormal Close: %s", address, errorMessage)
 		await websocket.close(1002, errorMessage)
 
-	def getUsersInRoom(self, room: str):
+	def getUsersInRoom(self, room: str) -> list[User]:
 		return [user for user in self.users if user.room == room]
 
 	async def connectionHandler(self, websocket: WebSocketServerProtocol, _path: str) -> None:
@@ -88,6 +88,8 @@ class WebSocketServer:
 						self.broadcast(user.room, { "type": "CONTROL_MEDIA", "data": { "requestingUser": { "name": user.name }, "action": data["action"], "position": data["position"] } }, user)
 					case "MEDIA_STATE":
 						self.broadcast(user.room, { "type": "MEDIA_STATE", "data": { "user": { "name": user.name }, "state": data["state"], "position": data["position"] } }, user)
+					case _:
+						pass
 		except ConnectionClosedError:
 			if user and not websocket.close_sent:
 				user.disconnectReason = "Connection Closed"
