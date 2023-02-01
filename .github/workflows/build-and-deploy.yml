@@ -1,0 +1,10 @@
+name: Build and deploy
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+jobs:
+  build-python-deploy-ssh:
+    uses: shibijm/gh-actions-workflows/.github/workflows/build-python-deploy-ssh-preset-1.yml@master
+    secrets: inherit
