@@ -1,1 +1,1 @@
-from .WebSocketServer import WebSocketServer as WebSocketServer
+from .WebSocketController import WebSocketController as WebSocketController

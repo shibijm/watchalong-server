@@ -1,0 +1,19 @@
+name: Build and release
+run-name: Build and release ${{ inputs.version || github.ref_name }}
+on:
+  push:
+    tags:
+      - v*
+  workflow_dispatch:
+    inputs:
+      version:
+        required: true
+        type: string
+        description: Version (vX.X.X.X)
+jobs:
+  build-python-release:
+    uses: shibijm/gh-actions-workflows/.github/workflows/build-python-release-preset-1.yml@master
+    with:
+      version: ${{ inputs.version || github.ref_name }}
+    permissions:
+      contents: write

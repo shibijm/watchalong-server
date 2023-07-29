@@ -3,23 +3,15 @@ from typing import Optional
 from utils.logging import logger
 from websockets.exceptions import ConnectionClosedError
 from websockets.legacy.protocol import broadcast
-from websockets.server import serve, WebSocketServerProtocol
-import asyncio
+from websockets.server import WebSocketServerProtocol
 import functools
 import json
 import traceback
 
-class WebSocketServer:
+class WebSocketController:
 
-	users: list[User] = []
-
-	def __init__(self, port: int) -> None:
-		self.port = port
-		asyncio.run(self.start())
-
-	async def start(self) -> None:
-		server = await serve(self.connectionHandler, None, self.port, ping_interval = None, ping_timeout = None)
-		await server.wait_closed()
+	def __init__(self, users: list[User]) -> None:
+		self.users = users
 
 	def broadcast(self, room: str, envelope: WebSocketEnvelope, excludedUser: Optional[User] = None) -> None:
 		userWebSockets = [user.websocket for user in self.getUsersInRoom(room) if user != excludedUser]

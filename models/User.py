@@ -1,7 +1,7 @@
 from .WebSocketEnvelope import WebSocketEnvelope
+from typing import Optional
 from utils import AsyncTimer
 from utils.logging import logger
-from typing import Optional
 from websockets.legacy.server import WebSocketServerProtocol
 import json
 
