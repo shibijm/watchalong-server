@@ -10,12 +10,12 @@ import traceback
 
 class WebSocketController:
 
-	def __init__(self, users: list[User]) -> None:
-		self.users = users
+	def __init__(self):
+		self.users: list[User] = []
 
 	def broadcast(self, room: str, envelope: WebSocketEnvelope, excludedUser: Optional[User] = None) -> None:
 		userWebSockets = [user.websocket for user in self.getUsersInRoom(room) if user != excludedUser]
-		if (len(userWebSockets) > 0):
+		if len(userWebSockets) > 0:
 			envelopeEncoded = json.dumps(envelope, separators = (",", ":"))
 			logger.info("[BROADCAST] [%s] %s", room, envelopeEncoded)
 			broadcast(userWebSockets, envelopeEncoded)
@@ -69,7 +69,7 @@ class WebSocketController:
 						self.broadcast(user.room, { "type": "USER_JOINED", "data": { "name": user.name } }, user)
 						await user.send({ "type": "HANDSHAKE", "data": None })
 					continue
-				if (envelope["type"] == "PONG"):
+				if envelope["type"] == "PONG":
 					user.handlePong()
 					continue
 				logger.info("[IN] [%s] [%s - %s] %s", user.room, user.name, user.address, envelopeEncoded)
@@ -85,7 +85,7 @@ class WebSocketController:
 		except ConnectionClosedError:
 			if user and not websocket.close_sent:
 				user.disconnectReason = "Connection Closed"
-		except:
+		except Exception:
 			logger.error(traceback.format_exc().strip())
 			if user:
 				user.disconnectReason = "Error"

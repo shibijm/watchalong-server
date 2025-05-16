@@ -10,7 +10,7 @@ class User:
 	pingInterval = 30
 	pingTimeoutDelay = 15
 
-	def __init__(self, websocket: WebSocketServerProtocol, address: str, name: str, room: str) -> None:
+	def __init__(self, websocket: WebSocketServerProtocol, address: str, name: str, room: str):
 		self.websocket = websocket
 		self.address = address
 		self.name = name
@@ -40,6 +40,6 @@ class User:
 
 	async def send(self, envelope: WebSocketEnvelope) -> None:
 		envelopeEncoded = json.dumps(envelope, separators = (",", ":"))
-		if (envelope["type"] != "PING"):
+		if envelope["type"] != "PING":
 			logger.info("[OUT] [%s] [%s - %s] %s", self.room, self.name, self.address, envelopeEncoded)
 		await self.websocket.send(envelopeEncoded)

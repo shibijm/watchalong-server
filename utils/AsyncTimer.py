@@ -3,7 +3,7 @@ import asyncio
 
 class AsyncTimer:
 
-	def __init__(self, delay: int, callback: Callable[..., Coroutine[None, None, Any]], *args: Any, **kwargs: Any) -> None:
+	def __init__(self, delay: int, callback: Callable[..., Coroutine[None, None, Any]], *args: Any, **kwargs: Any):
 		"""
 		Schedules coroutine function `callback` to be called after `delay` seconds.
 
