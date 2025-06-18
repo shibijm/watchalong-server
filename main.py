@@ -4,7 +4,7 @@ from websockets.server import serve
 import asyncio
 import os
 
-version = "1.0.0"
+version = "1.0.1"
 bindAddress = os.environ.get("BIND_ADDRESS", "0.0.0.0")
 bindPort = int(os.environ.get("BIND_PORT", "22334"))
 
