@@ -29,7 +29,7 @@ class WebSocketController:
 
 	async def connectionHandler(self, websocket: WebSocketServerProtocol, _path: str) -> None:
 		if "X-Forwarded-For" in websocket.request_headers:
-			address = websocket.request_headers["X-Forwarded-For"]
+			address = websocket.request_headers["X-Forwarded-For"] # TODO: Check whether remote address is a trusted proxy before trusting X-Forwarded-For header
 		else:
 			address = f"{websocket.remote_address[0]}:{websocket.remote_address[1]}"
 		closeAbnormally = functools.partial(self.closeAbnormally, websocket = websocket, address = address)
